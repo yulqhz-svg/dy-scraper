@@ -233,7 +233,8 @@ class DouyinApiClient:
                 cursor = new_cursor
                 time.sleep(0.5)
 
-            except Exception:
+            except Exception as e:
+                pass
                 empty_pages += 1
                 time.sleep(1.0)
 

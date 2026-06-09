@@ -593,6 +593,80 @@ class DouyinScraper:
             self.progress["comments_total"] += 1
         return count, reply_cids
 
+    # ==================== 浏览器搜索 ====================
+
+    def _browser_search(self, page, max_videos: int = 0) -> list:
+        """通过浏览器搜索页获取视频列表
+        拦截 /aweme/v1/web/search/item/ 响应，提取 data[].aweme_info
+        """
+        from urllib.parse import quote
+
+        keyword = self.search_keyword.strip()
+        search_url = f"https://www.douyin.com/search/{quote(keyword)}?type=video"
+
+        videos = []
+        seen = set()
+
+        def _add_items(items):
+            for item in (items or []):
+                aweme = (item.get("aweme_info") or {}) if isinstance(item, dict) else {}
+                vid = str(aweme.get("aweme_id", ""))
+                if vid and vid not in seen:
+                    seen.add(vid)
+                    title = aweme.get("desc", "") or aweme.get("preview_title", "")
+                    videos.append({
+                        "video_id": vid,
+                        "title": title[:200] if title else "",
+                        "url": f"https://www.douyin.com/video/{vid}"
+                    })
+
+        def on_response(response):
+            if "/aweme/v1/web/search/item" not in response.url:
+                return
+            try:
+                body = response.json()
+                _add_items(body.get("data") or [])
+            except Exception:
+                pass
+
+        page.on("response", on_response)
+
+        self.progress["current"] = "正在打开搜索结果页..."
+        page.goto(search_url, wait_until="domcontentloaded", timeout=30000)
+        random_delay(3, 5)
+
+        # 滚动加载更多
+        scroll_count = 0
+        max_scrolls = max(max_videos // 10, 30) if max_videos else 60
+        prev_count = 0
+        no_progress = 0
+
+        while scroll_count < max_scrolls:
+            if self.stop_event.is_set():
+                break
+            if max_videos and len(videos) >= max_videos:
+                break
+            if no_progress >= 8:
+                break
+
+            page.evaluate("window.scrollBy(0, window.innerHeight * 0.8)")
+            random_delay(1.5, 3)
+            scroll_count += 1
+
+            if len(videos) == prev_count and scroll_count > 5:
+                no_progress += 1
+            else:
+                no_progress = 0
+            prev_count = len(videos)
+
+            self.progress["current"] = (
+                f"正在搜索「{keyword}」... 已收集 {len(videos)} 个视频 "
+                f"(滚动 {scroll_count}/{max_scrolls})"
+            )
+
+        page.remove_listener("response", on_response)
+        return videos
+
     # ==================== 批量视频解析 ====================
 
     def _parse_video_list(self, text: str) -> list:
@@ -729,96 +803,97 @@ class DouyinScraper:
                 if not cookie_loaded:
                     do_login()
 
-                # ---- 提取凭证 ----
-                cookie_str = get_cookie_str(context)
-                ms_token = get_ms_token(page)
                 user_agent = page.evaluate("() => navigator.userAgent")
 
-                # 确保 msToken 被设置到 localStorage
-                if not ms_token:
-                    page.goto("https://www.douyin.com", wait_until="domcontentloaded", timeout=30000)
-                    random_delay(2, 3)
-                    ms_token = get_ms_token(page)
-                    cookie_str = get_cookie_str(context)
+                # ========== 搜索模式：先搜后取凭证（避免 douyin.com 首页污染 session） ==========
+                if mode == "search":
+                    search_max = self.search_max_videos or self.max_videos
+                    videos = self._browser_search(page, search_max)
 
-                # ---- 创建 API 客户端 ----
-                api_client = DouyinApiClient(
-                    cookie_str=cookie_str,
-                    user_agent=user_agent,
-                    ms_token=ms_token,
-                )
+                    if not videos:
+                        self.progress["current"] = (
+                            f"未搜索到「{self.search_keyword}」相关视频，请尝试更换关键词")
+                        self.status = "error"
+                        return
 
-                # ---- 检查登录状态 ----
-                try:
-                    local_storage = page.evaluate("() => window.localStorage")
-                    is_logged_in = (
-                        local_storage.get("HasUserLogin") == "1"
-                        or "LOGIN_STATUS=1" in cookie_str
-                    )
-                    if not is_logged_in:
-                        raise CookieStaleError("未登录")
-                except CookieStaleError:
-                    self.progress["current"] = "Cookie 失效，正在重新登录..."
-                    COOKIE_FILE.unlink(missing_ok=True)
-                    do_login()
+                    # 从搜索结果页提取凭证（页面已在 douyin.com 域名下）
                     cookie_str = get_cookie_str(context)
                     ms_token = get_ms_token(page)
+
                     api_client = DouyinApiClient(
                         cookie_str=cookie_str,
                         user_agent=user_agent,
                         ms_token=ms_token,
                     )
 
-                # ========== 确定视频列表 ==========
-                videos = []
-
-                if mode == "batch_videos":
-                    # 批量视频模式：使用预解析的视频列表
-                    videos = pre_resolved_videos
-                    self.progress["current"] = (
-                        f"批量模式：共 {len(videos)} 个视频，开始逐条采集评论..."
-                    )
-
-                elif mode == "search":
-                    # 搜索结果模式：通过搜索 API 获取视频列表
-                    self.progress["current"] = (
-                        f"正在搜索关键词「{self.search_keyword}」的相关视频..."
-                    )
-                    search_max = self.search_max_videos or self.max_videos
-                    videos = api_client.get_search_video_list(
-                        self.search_keyword.strip(), search_max)
-
-                    if not videos:
-                        self.progress["current"] = (
-                            f"未搜索到「{self.search_keyword}」相关视频，"
-                            "请尝试更换关键词")
-                        self.status = "error"
-                        api_client.close()
-                        return
-
                     self.progress["current"] = (
                         f"搜索到 {len(videos)} 条「{self.search_keyword}」相关视频，"
                         "开始逐条采集评论..."
                     )
 
-                elif single_video:
-                    # auto 模式 — 单视频
-                    videos = [single_video]
-
                 else:
-                    # auto 模式 — 用户主页
-                    page.goto("https://www.douyin.com", wait_until="domcontentloaded", timeout=30000)
-                    random_delay(2, 3)
+                    # ========== 非搜索模式：先取凭证再采集 ==========
+                    cookie_str = get_cookie_str(context)
+                    ms_token = get_ms_token(page)
 
-                    videos = self.scrape_user_videos(api_client)
+                    if not ms_token:
+                        page.goto("https://www.douyin.com", wait_until="domcontentloaded", timeout=30000)
+                        random_delay(2, 3)
+                        ms_token = get_ms_token(page)
+                        cookie_str = get_cookie_str(context)
 
-                    if not videos:
+                    api_client = DouyinApiClient(
+                        cookie_str=cookie_str,
+                        user_agent=user_agent,
+                        ms_token=ms_token,
+                    )
+
+                    # 检查登录状态
+                    try:
+                        local_storage = page.evaluate("() => window.localStorage")
+                        is_logged_in = (
+                            local_storage.get("HasUserLogin") == "1"
+                            or "LOGIN_STATUS=1" in cookie_str
+                        )
+                        if not is_logged_in:
+                            raise CookieStaleError("未登录")
+                    except CookieStaleError:
+                        self.progress["current"] = "Cookie 失效，正在重新登录..."
+                        COOKIE_FILE.unlink(missing_ok=True)
+                        do_login()
+                        cookie_str = get_cookie_str(context)
+                        ms_token = get_ms_token(page)
+                        api_client = DouyinApiClient(
+                            cookie_str=cookie_str,
+                            user_agent=user_agent,
+                            ms_token=ms_token,
+                        )
+
+                    videos = []
+
+                    if mode == "batch_videos":
+                        videos = pre_resolved_videos
                         self.progress["current"] = (
-                            "未获取到视频列表，可能原因：博主 ID 错误 / 私密账号 / "
-                            "需登录后查看")
-                        self.status = "error"
-                        api_client.close()
-                        return
+                            f"批量模式：共 {len(videos)} 个视频，开始逐条采集评论..."
+                        )
+
+                    elif single_video:
+                        videos = [single_video]
+
+                    else:
+                        # auto 模式 — 用户主页
+                        page.goto("https://www.douyin.com", wait_until="domcontentloaded", timeout=30000)
+                        random_delay(2, 3)
+
+                        videos = self.scrape_user_videos(api_client)
+
+                        if not videos:
+                            self.progress["current"] = (
+                                "未获取到视频列表，可能原因：博主 ID 错误 / 私密账号 / "
+                                "需登录后查看")
+                            self.status = "error"
+                            api_client.close()
+                            return
 
                 # 限制视频数量
                 max_v = self.search_max_videos or self.max_videos
