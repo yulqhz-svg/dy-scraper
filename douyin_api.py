@@ -166,9 +166,10 @@ class DouyinApiClient:
 
     # ---- 搜索 API ----
 
-    def search_videos(self, keyword: str, offset: int = 0, count: int = 20) -> dict:
-        """搜索视频"""
-        return self._get("/aweme/v1/web/general/search/single/", {
+    def search_videos(self, keyword: str, offset: int = 0, count: int = 20,
+                      cursor: int = 0) -> dict:
+        """搜索视频，支持 cursor 分页"""
+        params = {
             "keyword": keyword,
             "offset": offset,
             "count": count,
@@ -177,14 +178,18 @@ class DouyinApiClient:
             "is_filter_search": "0",
             "publish_time": "0",
             "sort_type": "0",
-        })
+        }
+        if cursor:
+            params["cursor"] = cursor
+        return self._get("/aweme/v1/web/general/search/single/", params)
 
     def get_search_video_list(self, keyword: str, max_count: int = 0) -> list:
         """获取搜索结果全部视频列表，返回 [{video_id, title, url}, ...]"""
         import time
 
         result = []
-        offset = 0
+        seen = set()
+        cursor = 0
         has_more = 1
         empty_pages = 0
 
@@ -195,13 +200,15 @@ class DouyinApiClient:
                 break
 
             try:
-                resp = self.search_videos(keyword, offset)
+                resp = self.search_videos(keyword, 0, 20, cursor)
                 data = resp.get("data") or []
                 has_more = resp.get("has_more", 0)
+                new_cursor = resp.get("cursor", 0)
 
                 if not data:
                     empty_pages += 1
-                    offset += 20
+                    if new_cursor and new_cursor != cursor:
+                        cursor = new_cursor
                     time.sleep(0.5)
                     continue
 
@@ -209,7 +216,8 @@ class DouyinApiClient:
                 for item in data:
                     aweme_info = item.get("aweme_info") or {}
                     aweme_id = str(aweme_info.get("aweme_id", ""))
-                    if aweme_id:
+                    if aweme_id and aweme_id not in seen:
+                        seen.add(aweme_id)
                         title = aweme_info.get("desc", "") or aweme_info.get("preview_title", "")
                         result.append({
                             "video_id": aweme_id,
@@ -222,7 +230,7 @@ class DouyinApiClient:
                 if not has_more:
                     break
 
-                offset += 20
+                cursor = new_cursor
                 time.sleep(0.5)
 
             except Exception:
