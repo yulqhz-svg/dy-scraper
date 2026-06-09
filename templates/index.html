@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>dy-scraper2.2</title>
+<style>
+:root {
+  --bg: #f0f2f5;
+  --card-bg: #fff;
+  --primary: #1677ff;
+  --primary-hover: #4096ff;
+  --danger: #ff4d4f;
+  --success: #52c41a;
+  --warning: #faad14;
+  --text: #1f1f1f;
+  --text-sec: #666;
+  --border: #e8e8e8;
+  --radius: 8px;
+  --shadow: 0 2px 8px rgba(0,0,0,.08);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+.container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+
+/* Header */
+.header { background: linear-gradient(135deg, #1677ff 0%, #0958d9 100%); color: #fff; padding: 24px 0; margin-bottom: 24px; box-shadow: 0 2px 12px rgba(22,119,255,.3); }
+.header .container { display: flex; align-items: center; justify-content: space-between; }
+.header h1 { font-size: 22px; font-weight: 600; }
+.header .subtitle { font-size: 13px; opacity: .85; margin-top: 4px; }
+
+/* Card */
+.card { background: var(--card-bg); border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px; margin-bottom: 16px; }
+.card-title { font-size: 15px; font-weight: 600; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+.card-title .icon { font-size: 18px; }
+
+/* Main input area */
+.main-input-area { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+.main-input-area .input-wrap { flex: 1; min-width: 360px; }
+.main-input-area label { font-size: 14px; color: var(--text-sec); font-weight: 500; display: block; margin-bottom: 6px; }
+.main-input-area input { width: 100%; height: 44px; padding: 0 14px; border: 2px solid var(--border); border-radius: 8px; font-size: 15px; outline: none; transition: border-color .2s; }
+.main-input-area input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(22,119,255,.1); }
+.main-input-area .hint { font-size: 12px; color: #999; margin-top: 4px; }
+
+/* Buttons */
+.btn { padding: 8px 20px; border: none; border-radius: 6px; font-size: 14px; cursor: pointer; font-weight: 500; transition: all .2s; display: inline-flex; align-items: center; gap: 6px; height: 38px; }
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-primary:hover { background: var(--primary-hover); }
+.btn-primary:disabled { background: #b3d4ff; cursor: not-allowed; }
+.btn-danger { background: var(--danger); color: #fff; }
+.btn-danger:hover { background: #ff7875; }
+.btn-default { background: #fff; color: var(--text); border: 1px solid var(--border); }
+.btn-default:hover { border-color: var(--primary); color: var(--primary); }
+.btn-success { background: var(--success); color: #fff; }
+.btn-success:hover { background: #73d13d; }
+.btn-lg { height: 44px; padding: 0 32px; font-size: 16px; border-radius: 8px; }
+.btn-group { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+
+/* Status bar */
+.status-bar { display: flex; align-items: center; gap: 16px; padding: 12px 16px; background: var(--card-bg); border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: 16px; font-size: 13px; }
+.status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.status-dot.idle { background: #999; }
+.status-dot.running { background: var(--success); animation: pulse 1.5s infinite; }
+.status-dot.completed { background: var(--primary); }
+.status-dot.error { background: var(--danger); }
+.status-dot.stopped { background: var(--warning); }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+.status-msg { color: var(--text-sec); flex: 1; }
+.progress-bar-outer { flex: 2; height: 8px; background: #f0f0f0; border-radius: 4px; overflow: hidden; min-width: 200px; }
+.progress-bar-inner { height: 100%; background: var(--primary); border-radius: 4px; transition: width .3s; width: 0%; }
+.stat-num { font-weight: 700; color: var(--primary); font-size: 15px; }
+.stat-label { color: var(--text-sec); font-size: 12px; }
+
+/* Collapsible */
+.collapsible { cursor: pointer; user-select: none; }
+.collapsible .arrow { transition: transform .2s; display: inline-block; }
+.collapsible.open .arrow { transform: rotate(90deg); }
+.collapse-content { display: none; margin-top: 12px; }
+.collapse-content.show { display: block; }
+
+/* Form */
+.form-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+.form-item { display: flex; flex-direction: column; gap: 4px; }
+.form-item label { font-size: 13px; color: var(--text-sec); font-weight: 500; }
+.form-item input, .form-item textarea, .form-item select { padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px; outline: none; transition: border-color .2s; }
+.form-item input:focus, .form-item textarea:focus, .form-item select:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(22,119,255,.1); }
+.form-item input { height: 38px; width: 140px; }
+.form-item textarea { resize: vertical; font-family: inherit; }
+
+/* Keywords */
+.tag-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag { padding: 4px 12px; background: #f0f5ff; color: var(--primary); border-radius: 20px; font-size: 13px; border: 1px solid #d6e4ff; display: inline-flex; align-items: center; gap: 4px; }
+.tag .del { cursor: pointer; opacity: .5; font-size: 16px; line-height: 1; }
+.tag .del:hover { opacity: 1; color: var(--danger); }
+
+/* Mode tabs */
+.mode-tabs { display: flex; gap: 4px; margin-bottom: 16px; background: #f5f5f5; border-radius: 8px; padding: 4px; }
+.mode-tab { flex: 1; text-align: center; padding: 10px 16px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; color: var(--text-sec); transition: all .2s; border: none; background: transparent; }
+.mode-tab:hover { color: var(--text); }
+.mode-tab.active { background: #fff; color: var(--primary); box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+.mode-input-area { display: none; }
+.mode-input-area.show { display: block; }
+.batch-textarea { width: 100%; height: 120px; padding: 10px 14px; border: 2px solid var(--border); border-radius: 8px; font-size: 14px; font-family: inherit; resize: vertical; outline: none; transition: border-color .2s; }
+.batch-textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(22,119,255,.1); }
+.file-upload-row { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+.video-count-badge { display: inline-block; padding: 4px 12px; background: #f0f5ff; color: var(--primary); border-radius: 20px; font-size: 13px; font-weight: 600; }
+.search-row { display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+.search-row .input-wrap { flex: 1; min-width: 280px; }
+.search-row .input-wrap input { width: 100%; height: 44px; padding: 0 14px; border: 2px solid var(--border); border-radius: 8px; font-size: 15px; outline: none; transition: border-color .2s; }
+.search-row .input-wrap input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(22,119,255,.1); }
+.search-row .input-wrap label { font-size: 14px; color: var(--text-sec); font-weight: 500; display: block; margin-bottom: 6px; }
+.search-row .input-wrap .hint { font-size: 12px; color: #999; margin-top: 4px; }
+.search-row .input-short { width: 120px; }
+.search-row .input-short input { width: 100%; height: 44px; padding: 0 14px; border: 2px solid var(--border); border-radius: 8px; font-size: 15px; outline: none; transition: border-color .2s; }
+.search-row .input-short input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(22,119,255,.1); }
+.search-row .input-short label { font-size: 14px; color: var(--text-sec); font-weight: 500; display: block; margin-bottom: 6px; }
+
+/* Table */
+.table-wrap { overflow-x: auto; max-height: 500px; overflow-y: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { background: #fafafa; padding: 10px 12px; text-align: left; border-bottom: 2px solid var(--border); font-weight: 600; white-space: nowrap; position: sticky; top: 0; z-index: 1; }
+td { padding: 8px 12px; border-bottom: 1px solid var(--border); }
+tr:hover td { background: #fafafa; }
+tr.intent td { background: #fffbe6; }
+.intent-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+.intent-badge.yes { background: #fff1f0; color: #ff4d4f; border: 1px solid #ffa39e; }
+.intent-badge.no { background: #f5f5f5; color: #999; }
+.matched-kw { color: var(--danger); font-weight: 600; }
+
+/* Pagination */
+.pager { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 16px; }
+.pager button { padding: 6px 12px; border: 1px solid var(--border); background: #fff; border-radius: 4px; cursor: pointer; font-size: 13px; }
+.pager button:hover { border-color: var(--primary); color: var(--primary); }
+.pager button:disabled { opacity: .4; cursor: not-allowed; }
+.pager span { font-size: 13px; color: var(--text-sec); }
+
+/* Toast */
+.toast { position: fixed; top: 20px; right: 20px; padding: 12px 24px; border-radius: 6px; color: #fff; font-size: 14px; z-index: 999; animation: slideIn .3s; box-shadow: 0 4px 12px rgba(0,0,0,.15); }
+.toast.success { background: var(--success); }
+.toast.error { background: var(--danger); }
+.toast.info { background: var(--primary); }
+@keyframes slideIn { from{transform:translateX(100%);opacity:0} to{transform:translateX(0);opacity:1} }
+
+/* Tabs */
+.tabs { display: flex; gap: 0; border-bottom: 2px solid var(--border); margin-bottom: 16px; }
+.tab { padding: 8px 20px; cursor: pointer; color: var(--text-sec); font-weight: 500; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all .2s; font-size: 14px; }
+.tab:hover { color: var(--primary); }
+.tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+/* Empty state */
+.empty { text-align: center; padding: 40px; color: #999; }
+
+/* License */
+.license-badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .2s; }
+.license-badge.free { background: rgba(255,255,255,.2); color: #fff; border: 1px solid rgba(255,255,255,.3); }
+.license-badge.vip { background: linear-gradient(135deg, #ffd700, #ffb800); color: #5a3e00; border: 1px solid #e6a800; }
+.license-badge:hover { transform: scale(1.04); }
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 1000; align-items: center; justify-content: center; }
+.modal-overlay.show { display: flex; }
+.modal { background: #fff; border-radius: 12px; padding: 28px; width: 460px; max-width: 90vw; box-shadow: 0 8px 32px rgba(0,0,0,.2); }
+.modal h3 { font-size: 18px; margin-bottom: 16px; }
+.modal .form-row { margin-bottom: 12px; }
+.modal input { width: 100%; height: 42px; padding: 0 14px; border: 2px solid var(--border); border-radius: 8px; font-size: 14px; outline: none; }
+.modal input:focus { border-color: var(--primary); }
+.modal .btn-row { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+.mode-tab.vip-only { position: relative; }
+.mode-tab.vip-only::after { content: "会员"; font-size: 10px; padding: 1px 6px; background: linear-gradient(135deg, #ffd700, #ffb800); color: #5a3e00; border-radius: 10px; margin-left: 4px; font-weight: 600; }
+.mode-tab.locked { opacity: .6; cursor: not-allowed; }
+.upgrade-banner { display: none; padding: 12px 16px; background: linear-gradient(135deg, #fffbe6, #fff7cc); border: 1px solid #ffe58f; border-radius: 8px; margin-bottom: 16px; font-size: 13px; align-items: center; justify-content: space-between; }
+.upgrade-banner.show { display: flex; }
+.upgrade-banner .btn-upgrade { padding: 6px 16px; background: linear-gradient(135deg, #ffd700, #ffb800); color: #5a3e00; border: none; border-radius: 16px; font-size: 13px; font-weight: 600; cursor: pointer; }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .main-input-area { flex-direction: column; }
+  .main-input-area .input-wrap { min-width: 0; width: 100%; }
+  .header h1 { font-size: 18px; }
+  .status-bar { flex-wrap: wrap; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="container">
+    <div>
+      <h1>dy-scraper2.2</h1>
+      <div class="subtitle">输入博主主页链接或博主ID → 自动采集全部作品所有评论 → 关键词筛选意向客户 → 导出Excel</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <span style="font-size:13px;opacity:.8">全自动 · 本地离线 · 数据不上传</span>
+      <span class="license-badge free" id="licenseBadge" onclick="showLicenseModal()" title="点击管理授权">🔓 免费版</span>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- 升级提示 -->
+  <div class="upgrade-banner" id="upgradeBanner">
+    <span>🔓 当前为<strong>免费版</strong>，仅支持单个视频评论采集（最多2条视频）。<strong>会员版</strong>解锁博主主页、搜索、批量视频等全场景采集。</span>
+    <button class="btn-upgrade" onclick="showLicenseModal()">立即升级</button>
+  </div>
+
+  <!-- 采集配置 -->
+  <div class="card">
+    <div class="card-title"><span class="icon">⚙️</span> 采集配置</div>
+
+    <!-- 模式切换标签 -->
+    <div class="mode-tabs">
+      <button class="mode-tab active" onclick="switchMode('auto')" id="modeAuto">🏠 博主主页</button>
+      <button class="mode-tab vip-only" onclick="switchMode('batch_videos')" id="modeBatch">📹 指定视频</button>
+      <button class="mode-tab vip-only" onclick="switchMode('search')" id="modeSearch">🔍 搜索结果</button>
+    </div>
+
+    <!-- 博主主页模式 -->
+    <div class="mode-input-area show" id="areaAuto">
+      <div class="main-input-area">
+        <div class="input-wrap">
+          <label>博主主页链接 或 博主 ID（也支持单个视频链接）</label>
+          <input type="text" id="target" placeholder="例如：https://www.douyin.com/user/MS4wLjAB... 或直接粘贴 sec_uid">
+          <div class="hint">支持：博主主页链接、user/ID、纯 sec_uid，以及单个视频链接、纯数字视频ID</div>
+        </div>
+        <button class="btn btn-primary btn-lg" id="btnStart1" onclick="startCrawl()">▶ 开始采集</button>
+        <button class="btn btn-danger btn-lg" id="btnStop1" onclick="stopCrawl()" disabled>⏹ 停止</button>
+      </div>
+    </div>
+
+    <!-- 指定视频模式 -->
+    <div class="mode-input-area" id="areaBatch">
+      <div style="margin-bottom:12px">
+        <label style="font-size:14px;color:var(--text-sec);font-weight:500;display:block;margin-bottom:6px">
+          视频链接列表（每行一个，支持 /video/ID、包含视频的分享链接、纯数字视频ID）
+        </label>
+        <textarea class="batch-textarea" id="batchVideoList"
+          placeholder="每行粘贴一个视频链接，例如：&#10;https://www.douyin.com/video/123456789&#10;https://www.douyin.com/video/987654321&#10;或者直接粘贴纯数字视频ID，每行一个"></textarea>
+      </div>
+      <div class="file-upload-row">
+        <button class="btn btn-default" onclick="document.getElementById('fileInput').click()">📂 导入 .TXT 文件</button>
+        <input type="file" id="fileInput" accept=".txt,.csv" style="display:none" onchange="handleFileUpload(event)">
+        <button class="btn btn-default" onclick="parsePastedList()">🔍 解析链接</button>
+        <span id="batchVideoCount" style="display:none">
+          已识别 <span class="video-count-badge" id="batchVideoCountNum">0</span> 个视频
+        </span>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-primary btn-lg" id="btnStart2" onclick="startCrawl()">▶ 开始采集</button>
+        <button class="btn btn-danger btn-lg" id="btnStop2" onclick="stopCrawl()" disabled>⏹ 停止</button>
+      </div>
+    </div>
+
+    <!-- 搜索结果模式 -->
+    <div class="mode-input-area" id="areaSearch">
+      <div class="search-row">
+        <div class="input-wrap">
+          <label>搜索关键词</label>
+          <input type="text" id="searchKeyword" placeholder="输入要搜索的关键词，如：贷款、房产...">
+          <div class="hint">程序将采集搜索结果页中所有视频的评论</div>
+        </div>
+        <div class="input-short">
+          <label>最大视频数（0=全部）</label>
+          <input type="number" id="searchMaxVideos" value="0" min="0" max="500">
+        </div>
+        <button class="btn btn-primary btn-lg" id="btnStart3" onclick="startCrawl()">▶ 开始采集</button>
+        <button class="btn btn-danger btn-lg" id="btnStop3" onclick="stopCrawl()" disabled>⏹ 停止</button>
+      </div>
+    </div>
+
+    <!-- 高级设置 -->
+    <div style="margin-top:14px">
+      <span class="collapsible" onclick="toggleAdvanced()" id="advancedToggle">
+        <span class="arrow">▶</span> 高级设置（滚动次数、延迟、无头模式等）
+      </span>
+      <div class="collapse-content" id="advancedContent">
+        <div class="form-row" style="margin-top:8px">
+          <div class="form-item">
+            <label>滚动加载次数（0=自动全部）</label>
+            <input type="number" id="scrollTimes" value="0" min="0" max="100">
+          </div>
+          <div class="form-item">
+            <label>最小延迟（秒）</label>
+            <input type="number" id="delayMin" value="2" min="0.5" step="0.5">
+          </div>
+          <div class="form-item">
+            <label>最大延迟（秒）</label>
+            <input type="number" id="delayMax" value="5" min="1" step="0.5">
+          </div>
+          <div class="form-item">
+            <label>无头模式</label>
+            <select id="headless" style="height:38px;padding:0 8px;border:1px solid var(--border);border-radius:6px;">
+              <option value="0">否（可见浏览器）</option>
+              <option value="1">是（后台运行）</option>
+            </select>
+          </div>
+          <div class="form-item">
+            <label>采集子回复</label>
+            <select id="fetchSubComments" style="height:38px;padding:0 8px;border:1px solid var(--border);border-radius:6px;">
+              <option value="1">是（更完整）</option>
+              <option value="0">否（仅顶级评论）</option>
+            </select>
+          </div>
+        </div>
+        <div style="font-size:12px;color:#999;margin-top:6px">
+          提示：程序会自动滚动直到加载完所有视频和评论；滚动加载次数设为0时使用自动判断逻辑，>0时作为兜底最大滚动次数
+        </div>
+      </div>
+    </div>
+
+    <div class="btn-group">
+      <button class="btn btn-success" id="btnExport" onclick="exportExcel()">📥 导出 Excel</button>
+      <button class="btn btn-default" onclick="clearData()">🗑 清空数据</button>
+    </div>
+  </div>
+
+  <!-- 状态栏 -->
+  <div class="status-bar" id="statusBar">
+    <span class="status-dot idle" id="statusDot"></span>
+    <span style="font-weight:600;" id="statusText">就绪</span>
+    <span class="status-msg" id="statusMsg">等待输入博主链接...</span>
+    <div class="progress-bar-outer" id="progressOuter" style="display:none">
+      <div class="progress-bar-inner" id="progressBar"></div>
+    </div>
+    <span id="progressLabel" style="font-size:12px;color:var(--text-sec)"></span>
+    <span>🎬 <span class="stat-num" id="statVideos">0</span> <span class="stat-label">视频</span></span>
+    <span>💬 <span class="stat-num" id="statComments">0</span> <span class="stat-label">评论</span></span>
+    <span>🎯 <span class="stat-num" id="statIntent">0</span> <span class="stat-label">意向</span></span>
+  </div>
+
+  <!-- 筛选条件 -->
+  <div class="card">
+    <div class="card-title"><span class="icon">🔍</span> 评论筛选条件（仅在采集时生效，不满足条件的评论不保存）</div>
+    <div class="form-row" style="margin-bottom:10px">
+      <div class="form-item">
+        <label>地区筛选（如：广东、北京）</label>
+        <input type="text" id="filterRegion" placeholder="输入地区名，留空=不限" style="width:180px">
+      </div>
+      <div class="form-item">
+        <label>评论时间从</label>
+        <input type="text" id="filterTimeStart" placeholder="2025-01-01" style="width:140px">
+      </div>
+      <div class="form-item">
+        <label>评论时间至</label>
+        <input type="text" id="filterTimeEnd" placeholder="2025-12-31" style="width:140px">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-item">
+        <label>必须包含文字（逗号分隔，满足其一即可）</label>
+        <input type="text" id="filterTextInclude" placeholder="优惠,促销,活动" style="width:320px">
+      </div>
+      <div class="form-item">
+        <label>排除文字（逗号分隔，包含任一即丢弃）</label>
+        <input type="text" id="filterTextExclude" placeholder="广告,刷粉,加群" style="width:320px">
+      </div>
+    </div>
+  </div>
+
+  <!-- 关键词管理 -->
+  <div class="card">
+    <div class="card-title"><span class="icon">🔑</span> 自定义关键词库（评论包含任一关键词即判定为意向客户）</div>
+    <div class="form-row" style="margin-bottom:12px">
+      <div class="form-item">
+        <input type="text" id="newKeyword" placeholder="输入新关键词，回车添加" style="width:240px" onkeydown="if(event.key==='Enter')addKeyword()">
+      </div>
+      <button class="btn btn-primary" onclick="addKeyword()">+ 添加</button>
+      <button class="btn btn-default" onclick="saveKeywords()">💾 保存到文件</button>
+    </div>
+    <div class="tag-list" id="keywordTags"></div>
+    <div style="margin-top:8px">
+      <textarea id="batchKeywords" placeholder="批量导入关键词（每行一个）" rows="3" style="width:100%;max-width:500px"></textarea>
+      <br><button class="btn btn-default" style="margin-top:6px" onclick="batchImport()">批量导入</button>
+    </div>
+  </div>
+
+  <!-- 数据预览 -->
+  <div class="card">
+    <div class="card-title"><span class="icon">📊</span> 数据预览</div>
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('all')" id="tabAll">全部评论</div>
+      <div class="tab" onclick="switchTab('intent')" id="tabIntent">🎯 意向客户</div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>昵称</th><th>抖音ID</th><th>加密用户ID</th><th>地区</th><th>评论内容</th><th>评论时间</th><th>点赞</th>
+            <th>视频标题</th><th>命中关键词</th><th>意向</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody">
+          <tr><td colspan="10" class="empty">暂无数据，请先输入博主链接并开始采集</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="pager" id="pager"></div>
+  </div>
+
+</div>
+
+<!-- License 激活弹窗 -->
+<div class="modal-overlay" id="licenseModal">
+  <div class="modal">
+    <h3 id="licenseModalTitle">🔐 激活会员</h3>
+
+    <div style="display:flex;gap:12px;margin-bottom:16px">
+      <img src="/img/1.jpg" alt="激活说明1" style="width:50%;border-radius:8px;object-fit:contain;background:#f5f5f5">
+      <img src="/img/2.jpg" alt="激活说明2" style="width:50%;border-radius:8px;object-fit:contain;background:#f5f5f5">
+    </div>
+
+    <div id="licenseInfo" style="margin-bottom:16px;font-size:13px;color:var(--text-sec)">
+      <p>机器码：<code id="machineCode" style="background:#f5f5f5;padding:2px 8px;border-radius:4px;user-select:all">加载中...</code></p>
+      <p style="margin-top:8px">当前状态：<span id="licenseStatus">检查中...</span></p>
+    </div>
+    <div class="form-row">
+      <input type="text" id="licenseKeyInput" placeholder="请输入 License Key（格式：DYSCRAPER-XXXX-XXXX-XXXX-XXXX）">
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-default" onclick="closeLicenseModal()">关闭</button>
+      <button class="btn btn-primary" id="btnActivate" onclick="activateLicense()">激活</button>
+    </div>
+    <div id="licenseMsg" style="margin-top:12px;font-size:13px;text-align:center"></div>
+  </div>
+</div>
+
+<script>
+// ============ 全局状态 ============
+let currentTab = 'all';
+let currentPage = 1;
+let currentMode = 'auto';
+let keywords = [];
+let pollingTimer = null;
+
+// ============ License ============
+let licenseTier = 'free';
+
+async function checkLicense() {
+  try {
+    const res = await fetch('/api/license/status').then(r => r.json());
+    licenseTier = res.tier || 'free';
+    document.getElementById('machineCode').textContent = res.machineCode || '-';
+
+    const badge = document.getElementById('licenseBadge');
+    const banner = document.getElementById('upgradeBanner');
+
+    if (licenseTier === 'vip') {
+      badge.className = 'license-badge vip';
+      badge.innerHTML = '👑 会员版';
+      document.getElementById('licenseStatus').innerHTML =
+        '<span style="color:#52c41a;font-weight:600">已激活会员</span>' +
+        (res.offline ? ' <span style="color:#999">(离线模式)</span>' : '') +
+        (res.expiry ? `<br>到期时间：${new Date(res.expiry * 1000).toLocaleDateString('zh-CN')}` : '');
+      banner.classList.remove('show');
+      document.querySelectorAll('.mode-tab.vip-only').forEach(el => el.classList.remove('locked'));
+    } else {
+      badge.className = 'license-badge free';
+      badge.innerHTML = '🔓 免费版';
+      document.getElementById('licenseStatus').innerHTML =
+        '<span style="color:#ff4d4f">未激活</span>';
+      banner.classList.add('show');
+      document.querySelectorAll('.mode-tab.vip-only').forEach(el => el.classList.add('locked'));
+    }
+  } catch (e) {
+    document.getElementById('machineCode').textContent = '获取失败';
+    document.getElementById('licenseStatus').innerHTML = '<span style="color:#999">无法连接</span>';
+  }
+}
+
+function showLicenseModal() {
+  document.getElementById('licenseModal').classList.add('show');
+  document.getElementById('licenseKeyInput').value = '';
+  document.getElementById('licenseMsg').innerHTML = '';
+  checkLicense();
+}
+
+function closeLicenseModal() {
+  document.getElementById('licenseModal').classList.remove('show');
+}
+
+async function activateLicense() {
+  const key = document.getElementById('licenseKeyInput').value.trim();
+  if (!key) {
+    document.getElementById('licenseMsg').innerHTML = '<span style="color:#ff4d4f">请输入 License Key</span>';
+    return;
+  }
+
+  const btn = document.getElementById('btnActivate');
+  btn.disabled = true;
+  btn.textContent = '激活中...';
+  document.getElementById('licenseMsg').innerHTML = '';
+
+  try {
+    const res = await fetch('/api/license/activate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ licenseKey: key })
+    }).then(r => r.json());
+
+    if (res.ok) {
+      document.getElementById('licenseMsg').innerHTML =
+        `<span style="color:#52c41a">激活成功！到期时间：${new Date(res.expiry * 1000).toLocaleDateString('zh-CN')}</span>`;
+      await checkLicense();
+      setTimeout(closeLicenseModal, 2000);
+    } else {
+      document.getElementById('licenseMsg').innerHTML =
+        `<span style="color:#ff4d4f">${res.msg || '激活失败'}</span>`;
+    }
+  } catch (e) {
+    document.getElementById('licenseMsg').innerHTML =
+      `<span style="color:#ff4d4f">网络错误: ${e.message}</span>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '激活';
+  }
+}
+
+// ============ 初始化 ============
+async function init() {
+  await checkLicense();
+  await loadKeywords();
+  await refreshStats();
+}
+init();
+
+// ============ 模式切换 ============
+function switchMode(mode) {
+  // 免费版禁止切换 VIP 模式
+  if (licenseTier === 'free' && mode !== 'auto') {
+    toast('该功能为会员专属，请先激活会员', 'info');
+    showLicenseModal();
+    return;
+  }
+
+  currentMode = mode;
+  const vipSuffix = licenseTier === 'free' ? ' vip-only locked' : ' vip-only';
+  document.getElementById('modeAuto').className = 'mode-tab' + (mode === 'auto' ? ' active' : '');
+  document.getElementById('modeBatch').className = 'mode-tab' + vipSuffix + (mode === 'batch_videos' ? ' active' : '');
+  document.getElementById('modeSearch').className = 'mode-tab' + vipSuffix + (mode === 'search' ? ' active' : '');
+
+  document.getElementById('areaAuto').className = 'mode-input-area' + (mode === 'auto' ? ' show' : '');
+  document.getElementById('areaBatch').className = 'mode-input-area' + (mode === 'batch_videos' ? ' show' : '');
+  document.getElementById('areaSearch').className = 'mode-input-area' + (mode === 'search' ? ' show' : '');
+}
+
+// ============ 高级设置折叠 ============
+function toggleAdvanced() {
+  const toggle = document.getElementById('advancedToggle');
+  const content = document.getElementById('advancedContent');
+  toggle.classList.toggle('open');
+  content.classList.toggle('show');
+}
+
+// ============ 关键词 ============
+async function loadKeywords() {
+  const res = await fetch('/api/keywords').then(r => r.json());
+  keywords = res.keywords || [];
+  renderKeywords();
+}
+
+function renderKeywords() {
+  document.getElementById('keywordTags').innerHTML = keywords.map((kw, i) =>
+    `<span class="tag">${escHtml(kw)}<span class="del" onclick="removeKeyword(${i})" title="删除">&times;</span></span>`
+  ).join('');
+}
+
+function addKeyword() {
+  const inp = document.getElementById('newKeyword');
+  const kw = inp.value.trim();
+  if (!kw) return;
+  if (keywords.includes(kw)) { toast('关键词已存在', 'info'); return; }
+  keywords.push(kw);
+  inp.value = '';
+  renderKeywords();
+}
+
+function removeKeyword(i) {
+  keywords.splice(i, 1);
+  renderKeywords();
+}
+
+function batchImport() {
+  const text = document.getElementById('batchKeywords').value.trim();
+  if (!text) return;
+  const lines = text.split(/[\n,，、]+/).map(s => s.trim()).filter(Boolean);
+  let added = 0;
+  lines.forEach(kw => {
+    if (!keywords.includes(kw)) { keywords.push(kw); added++; }
+  });
+  document.getElementById('batchKeywords').value = '';
+  renderKeywords();
+  toast(`已导入 ${added} 个关键词`, 'success');
+}
+
+async function saveKeywords() {
+  await fetch('/api/keywords', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({keywords})
+  });
+  toast('关键词已保存', 'success');
+}
+
+// ============ 文件上传与解析 ============
+async function handleFileUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const res = await fetch('/api/upload-video-list', {
+      method: 'POST',
+      body: formData,
+    }).then(r => r.json());
+
+    if (res.ok) {
+      document.getElementById('batchVideoList').value = res.raw_text || '';
+      showBatchCount(res.count);
+      toast(`已导入 ${res.count} 个视频链接`, 'success');
+    } else {
+      toast(res.msg || '文件解析失败', 'error');
+    }
+  } catch (e) {
+    toast('文件上传失败: ' + e.message, 'error');
+  }
+  event.target.value = '';
+}
+
+async function parsePastedList() {
+  const text = document.getElementById('batchVideoList').value.trim();
+  if (!text) { toast('请先粘贴视频链接', 'info'); return; }
+
+  try {
+    const res = await fetch('/api/parse-video-list', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({text}),
+    }).then(r => r.json());
+
+    if (res.ok) {
+      showBatchCount(res.count);
+      toast(`已识别 ${res.count} 个有效视频链接`, 'success');
+    } else {
+      toast(res.msg || '解析失败', 'error');
+    }
+  } catch (e) {
+    toast('解析失败: ' + e.message, 'error');
+  }
+}
+
+function showBatchCount(n) {
+  const el = document.getElementById('batchVideoCount');
+  if (n > 0) {
+    el.style.display = '';
+    document.getElementById('batchVideoCountNum').textContent = n;
+  } else {
+    el.style.display = 'none';
+  }
+}
+
+// ============ 采集控制 ============
+function disableAllStartBtns() {
+  ['btnStart1','btnStart2','btnStart3'].forEach(id => {
+    document.getElementById(id).disabled = true;
+  });
+}
+function disableAllStopBtns() {
+  ['btnStop1','btnStop2','btnStop3'].forEach(id => {
+    document.getElementById(id).disabled = true;
+  });
+}
+function enableAllStartBtns() {
+  ['btnStart1','btnStart2','btnStart3'].forEach(id => {
+    document.getElementById(id).disabled = false;
+  });
+}
+function enableStopBtns() {
+  ['btnStop1','btnStop2','btnStop3'].forEach(id => {
+    document.getElementById(id).disabled = false;
+  });
+}
+
+async function startCrawl() {
+  const mode = currentMode;
+  let scrollTimes = parseInt(document.getElementById('scrollTimes').value) || 0;
+  if (scrollTimes === 0) scrollTimes = 50;
+
+  const body = {
+    mode,
+    max_videos: 0,
+    max_comments_per_video: 0,
+    scroll_times: scrollTimes,
+    delay_min: parseFloat(document.getElementById('delayMin').value) || 2,
+    delay_max: parseFloat(document.getElementById('delayMax').value) || 5,
+    headless: document.getElementById('headless').value === '1',
+    filter_region: document.getElementById('filterRegion').value.trim(),
+    filter_time_start: document.getElementById('filterTimeStart').value.trim(),
+    filter_time_end: document.getElementById('filterTimeEnd').value.trim(),
+    filter_text_include: document.getElementById('filterTextInclude').value.trim(),
+    filter_text_exclude: document.getElementById('filterTextExclude').value.trim(),
+    fetch_sub_comments: document.getElementById('fetchSubComments').value === '1',
+  };
+
+  if (mode === 'batch_videos') {
+    body.video_list = document.getElementById('batchVideoList').value.trim();
+    if (!body.video_list) { toast('请输入要采集的视频链接（每行一个）', 'error'); return; }
+  } else if (mode === 'search') {
+    body.search_keyword = document.getElementById('searchKeyword').value.trim();
+    body.search_max_videos = parseInt(document.getElementById('searchMaxVideos').value) || 0;
+    if (!body.search_keyword) { toast('请输入搜索关键词', 'error'); return; }
+  } else {
+    body.target = document.getElementById('target').value.trim();
+    if (!body.target) { toast('请输入博主主页链接或博主ID', 'error'); return; }
+  }
+
+  const res = await fetch('/api/start', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(body)
+  }).then(r => r.json());
+
+  if (res.ok) {
+    toast('采集任务已启动...', 'success');
+    disableAllStartBtns();
+    enableStopBtns();
+    startPolling();
+  } else {
+    toast(res.msg || '启动失败', 'error');
+  }
+}
+
+async function stopCrawl() {
+  await fetch('/api/stop', {method: 'POST'});
+  toast('已发送停止信号，等待当前操作完成...', 'info');
+  disableAllStopBtns();
+}
+
+function startPolling() {
+  if (pollingTimer) clearInterval(pollingTimer);
+  pollingTimer = setInterval(pollStatus, 1500);
+  pollStatus();
+}
+
+async function pollStatus() {
+  const res = await fetch('/api/status').then(r => r.json());
+  const {status, progress} = res;
+
+  updateStatusUI(status, progress);
+
+  if (status === 'completed' || status === 'stopped' || status === 'error') {
+    clearInterval(pollingTimer);
+    pollingTimer = null;
+    enableAllStartBtns();
+    disableAllStopBtns();
+
+    if (status === 'completed') { toast('采集完成！', 'success'); loadData(); refreshStats(); }
+    else if (status === 'error') { toast(progress.current, 'error'); }
+    else { toast('采集已停止', 'info'); loadData(); refreshStats(); }
+  }
+
+  if (status === 'running') {
+    refreshStats();
+  }
+}
+
+function updateStatusUI(status, progress) {
+  const dot = document.getElementById('statusDot');
+  dot.className = 'status-dot ' + status;
+  const text = document.getElementById('statusText');
+  const map = {idle:'就绪', running:'采集中', completed:'已完成', stopped:'已停止', error:'错误'};
+  text.textContent = map[status] || status;
+
+  document.getElementById('statusMsg').textContent = progress?.current || '';
+  document.getElementById('statVideos').textContent = progress?.videos_done || 0;
+
+  if (progress && progress.videos_total > 0) {
+    document.getElementById('progressOuter').style.display = '';
+    const pct = Math.round((progress.videos_done / progress.videos_total) * 100);
+    document.getElementById('progressBar').style.width = pct + '%';
+    document.getElementById('progressLabel').textContent = `视频 ${progress.videos_done}/${progress.videos_total}`;
+  } else {
+    document.getElementById('progressOuter').style.display = 'none';
+    document.getElementById('progressLabel').textContent = '';
+  }
+}
+
+// ============ 数据加载 ============
+async function refreshStats() {
+  const res = await fetch('/api/stats').then(r => r.json());
+  document.getElementById('statComments').textContent = res.total_comments || 0;
+  document.getElementById('statIntent').textContent = res.intent_comments || 0;
+}
+
+async function loadData(page = 1) {
+  currentPage = page;
+  const intent = currentTab === 'intent' ? '1' : '0';
+  const res = await fetch(`/api/comments?intent=${intent}&page=${page}&per_page=50`).then(r => r.json());
+
+  const tbody = document.getElementById('tableBody');
+  if (!res.data || res.data.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="10" class="empty">暂无数据</td></tr>';
+    document.getElementById('pager').innerHTML = '';
+    return;
+  }
+
+  tbody.innerHTML = res.data.map(r => `
+    <tr class="${r.is_intent ? 'intent' : ''}">
+      <td title="${escHtml(r.nickname)}">${truncate(r.nickname, 12)}</td>
+      <td>${escHtml(r.douyin_id) || '-'}</td>
+      <td title="${escHtml(r.sec_user_id)}">${truncate(r.sec_user_id, 16) || '-'}</td>
+      <td>${escHtml(r.region) || '-'}</td>
+      <td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(r.content)}">${escHtml(r.content)}</td>
+      <td style="white-space:nowrap">${escHtml(r.comment_time) || '-'}</td>
+      <td>${r.like_count || 0}</td>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escHtml(r.video_title)}">${truncate(r.video_title, 25)}</td>
+      <td><span class="matched-kw">${escHtml(r.matched_keywords) || '-'}</span></td>
+      <td><span class="intent-badge ${r.is_intent ? 'yes' : 'no'}">${r.is_intent ? '意向' : '普通'}</span></td>
+    </tr>
+  `).join('');
+
+  // 分页
+  const totalPages = Math.ceil(res.total / res.per_page);
+  document.getElementById('pager').innerHTML = totalPages <= 1 ? '' : `
+    <button onclick="loadData(1)" ${page===1?'disabled':''}>首页</button>
+    <button onclick="loadData(${page-1})" ${page===1?'disabled':''}>上一页</button>
+    <span>第 ${page} / ${totalPages} 页（共 ${res.total} 条）</span>
+    <button onclick="loadData(${page+1})" ${page>=totalPages?'disabled':''}>下一页</button>
+    <button onclick="loadData(${totalPages})" ${page>=totalPages?'disabled':''}>末页</button>
+  `;
+}
+
+function switchTab(tab) {
+  currentTab = tab;
+  document.getElementById('tabAll').className = 'tab' + (tab==='all' ? ' active' : '');
+  document.getElementById('tabIntent').className = 'tab' + (tab==='intent' ? ' active' : '');
+  loadData(1);
+}
+
+// ============ 导出 ============
+async function exportExcel() {
+  const intent = currentTab === 'intent' ? '1' : '0';
+  const res = await fetch(`/api/export?intent=${intent}`);
+  if (!res.ok) {
+    const j = await res.json().catch(() => ({}));
+    toast(j.msg || '导出失败', 'error');
+    return;
+  }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `dy-scraper2.2_${new Date().toISOString().slice(0,10)}.xlsx`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('导出成功', 'success');
+}
+
+// ============ 清空 ============
+async function clearData() {
+  if (!confirm('确定要清空所有采集数据吗？此操作不可恢复。')) return;
+  await fetch('/api/clear-data', {method: 'POST'});
+  toast('数据已清空', 'info');
+  document.getElementById('tableBody').innerHTML = '<tr><td colspan="10" class="empty">数据已清空</td></tr>';
+  document.getElementById('pager').innerHTML = '';
+  refreshStats();
+}
+
+// ============ 工具函数 ============
+function escHtml(s) {
+  if (!s) return '';
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function truncate(s, n) {
+  if (!s) return '';
+  return s.length > n ? s.slice(0,n) + '...' : s;
+}
+function toast(msg, type) {
+  const el = document.createElement('div');
+  el.className = 'toast ' + (type || 'info');
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity .3s'; }, 2500);
+  setTimeout(() => el.remove(), 2900);
+}
+
+window.addEventListener('beforeunload', () => { if (pollingTimer) clearInterval(pollingTimer); });
+</script>
+</body>
+</html>

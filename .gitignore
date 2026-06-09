@@ -1,0 +1,78 @@
+# Python 编译文件
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Chrome 配置目录
+data/chrome_profile/
+*.dat
+*.pma
+
+
+# 打包文件
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# 虚拟环境
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+
+# 编辑器
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# 系统文件
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# 日志
+logs/
+*.log
+log/
+
+# 配置/密钥/授权文件
+config.ini
+config.json
+.env
+.venv
+secrets.json
+auth.db
+
+# 运行时数据（含登录态、数据库）
+data/
+
+# 导出文件
+exports/
+
+# License 缓存
+.license_cache
+
+# PyInstaller 产物
+*.spec.bak
