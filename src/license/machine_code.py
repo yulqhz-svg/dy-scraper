@@ -1,5 +1,6 @@
 import hashlib
 import platform
+import re
 import subprocess
 import uuid
 
@@ -56,6 +57,52 @@ def _get_motherboard_serial() -> str:
     return ""
 
 
+def _get_disk_serial() -> str:
+    """获取系统盘序列号，提高机器区分度 (Vulnerability 4 fix)"""
+    system = platform.system()
+    if system == "Windows":
+        # 只取固定硬盘的系统盘序列号
+        output = _run_ps(
+            "Get-CimInstance Win32_DiskDrive | Where-Object { $_.MediaType -eq 'Fixed hard disk media' } | Select-Object -First 1 -ExpandProperty SerialNumber"
+        )
+        if output:
+            return output.strip()
+        # 备选: wmic (兼容旧系统)
+        try:
+            raw = subprocess.check_output(
+                ["wmic", "diskdrive", "where", "MediaType='Fixed hard disk media'",
+                 "get", "SerialNumber"],
+                timeout=5
+            ).decode(errors="ignore")
+            lines = raw.strip().split("\n")
+            return lines[1].strip() if len(lines) > 1 else ""
+        except Exception:
+            return ""
+    elif system == "Linux":
+        try:
+            output = subprocess.check_output(
+                ["lsblk", "-o", "SERIAL", "-nd"], timeout=5
+            ).decode(errors="ignore")
+            return output.strip().split("\n")[0].strip()
+        except Exception:
+            try:
+                # 备选: /sys/block/sda/device/serial
+                with open("/sys/block/sda/device/serial") as f:
+                    return f.read().strip()
+            except Exception:
+                return ""
+    elif system == "Darwin":
+        try:
+            output = subprocess.check_output(
+                ["system_profiler", "SPSerialATADataType"], timeout=5
+            ).decode(errors="ignore")
+            match = re.search(r"Serial Number:\s*(\S+)", output)
+            return match.group(1) if match else ""
+        except Exception:
+            return ""
+    return ""
+
+
 def _get_mac_address() -> str:
     mac = uuid.getnode()
     return ":".join(f"{(mac >> i) & 0xFF:02x}" for i in range(40, -1, -8))
@@ -66,6 +113,7 @@ def get_machine_code() -> str:
         [
             _get_cpu_id(),
             _get_motherboard_serial(),
+            _get_disk_serial(),
             _get_mac_address(),
             platform.system(),
             platform.machine(),
